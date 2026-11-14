@@ -1,0 +1,615 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#071426">
+    <meta name="description" content="SMARTCLASS - Sala Inteligente">
+    <title>SMARTCLASS | Sala Inteligente</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<div class="app-shell">
+
+    <aside class="sidebar" id="sidebar">
+
+        <a class="brand" href="#">
+            <span class="brand-mark">⌂</span>
+
+            <span>
+                <strong>SMARTCLASS</strong>
+                <small>Sala Inteligente</small>
+            </span>
+        </a>
+
+        <div class="sidebar-label">MENU PRINCIPAL</div>
+
+        <nav class="side-nav">
+
+            <a class="nav-link active" href="#inicio" data-page="inicio">
+                <span class="nav-icon">⌂</span>
+                <span>Visão geral</span>
+            </a>
+
+            <a class="nav-link" href="#sensores" data-page="sensores">
+                <span class="nav-icon">⌁</span>
+                <span>Sensores</span>
+            </a>
+
+            <a class="nav-link" href="#equipamentos" data-page="equipamentos">
+                <span class="nav-icon">▣</span>
+                <span>Equipamentos</span>
+            </a>
+
+            <a class="nav-link" href="#historico" data-page="historico">
+                <span class="nav-icon">◷</span>
+                <span>Histórico</span>
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="connection-card">
+                <span class="connection-dot"></span>
+
+                <div>
+                    <strong id="connectionLabel">Modo demonstração</strong>
+                    <small id="connectionDetail">API ainda não conectada</small>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                SMARTCLASS
+                <span>v1.0.0</span>
+            </div>
+
+        </div>
+
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+
+            <button class="icon-button mobile-menu" id="menuButton">
+                ☰
+            </button>
+
+            <div class="breadcrumb">
+                Painel <span>/</span>
+                <strong id="pageTitle">Visão geral</strong>
+            </div>
+
+            <div class="topbar-actions">
+
+                <span class="live-indicator">
+                    <i></i>
+                    Sistema ativo
+                </span>
+
+                <button class="icon-button" id="refreshButton">
+                    ↻
+                </button>
+
+                <div class="avatar">SC</div>
+
+            </div>
+
+        </header>
+
+        <!-- INÍCIO -->
+
+        <section class="page-section" id="inicio">
+
+            <div class="welcome-row">
+
+                <div>
+                    <p class="eyebrow">PAINEL DE CONTROLE</p>
+
+                    <h1>Olá! <span class="wave">,</span></h1>
+
+                    <p class="muted">
+                        Acompanhe e controle sua sala em um só lugar.
+                    </p>
+                </div>
+
+                <div class="room-selector">
+                    <span class="room-status"></span>
+                    Sala 01
+                    <span class="selector-arrow">⌄</span>
+                </div>
+
+            </div>
+
+            <!-- SALA -->
+
+            <div class="room-banner">
+
+                <div class="room-banner-content">
+
+                    <span class="banner-tag">
+                        AMBIENTE MONITORADO
+                    </span>
+
+                    <h2>Sala 01</h2>
+
+                    <p>Ambiente inteligente conectado</p>
+
+                    <div class="banner-meta">
+                        <span>●</span>
+                        Monitoramento em funcionamento
+                    </div>
+
+                </div>
+
+                <div class="room-illustration">
+                    <div class="ceiling-light"></div>
+                    <div class="window"></div>
+                    <div class="desk desk-one"></div>
+                    <div class="desk desk-two"></div>
+                </div>
+
+            </div>
+
+            <!-- INDICADORES -->
+
+            <div class="section-heading">
+
+                <div>
+                    <h2>Resumo do ambiente</h2>
+                    <p>Informações atualizadas dos sensores</p>
+                </div>
+
+                <span class="updated-label" id="lastUpdated">
+                    Atualizando...
+                </span>
+
+            </div>
+
+            <div class="metrics-grid">
+
+                <!-- PESSOAS -->
+
+                <article class="metric-card">
+
+                    <div class="metric-top">
+                        <span class="metric-icon blue">♙</span>
+                        <span class="metric-caption">Pessoas na sala</span>
+                        <span class="metric-menu">•••</span>
+                    </div>
+
+                    <div class="metric-value" id="peopleValue">
+                        12 <small>pessoas</small>
+                    </div>
+
+                    <div class="metric-bottom">
+                        <span id="peopleCapacity">Máximo: 30</span>
+                        <span class="mini-pill">● Normal</span>
+                    </div>
+
+                    <div class="capacity-track">
+                        <span id="capacityBar" style="width:40%"></span>
+                    </div>
+
+                </article>
+
+                <!-- TEMPERATURA -->
+
+                <article class="metric-card">
+
+                    <div class="metric-top">
+                        <span class="metric-icon cyan">♨</span>
+                        <span class="metric-caption">Temperatura</span>
+                        <span class="metric-menu">•••</span>
+                    </div>
+
+                    <div class="metric-value" id="temperatureValue">
+                        22,0<small>°C</small>
+                    </div>
+
+                    <div class="metric-bottom">
+                        <span>Temperatura atual</span>
+                        <span class="mini-pill">● Ideal</span>
+                    </div>
+
+                    <div class="metric-footnote">
+                        Faixa de referência: 20–26 °C
+                    </div>
+
+                </article>
+
+                <!-- UMIDADE -->
+
+                <article class="metric-card">
+
+                    <div class="metric-top">
+                        <span class="metric-icon violet">◉</span>
+                        <span class="metric-caption">Umidade</span>
+                        <span class="metric-menu">•••</span>
+                    </div>
+
+                    <div class="metric-value" id="humidityValue">
+                        48<small>%</small>
+                    </div>
+
+                    <div class="metric-bottom">
+                        <span>Umidade relativa</span>
+                        <span class="mini-pill">● Ideal</span>
+                    </div>
+
+                    <div class="metric-footnote">
+                        Faixa de referência: 40–60%
+                    </div>
+
+                </article>
+
+                <!-- ILUMINAÇÃO -->
+
+                <article class="metric-card">
+
+                    <div class="metric-top">
+                        <span class="metric-icon teal">☼</span>
+                        <span class="metric-caption">Iluminação</span>
+                        <span class="metric-menu">•••</span>
+                    </div>
+
+                    <div class="metric-value" id="lightValue">
+                        Ligada
+                    </div>
+
+                    <div class="metric-bottom">
+                        <span>Controle do ambiente</span>
+                        <span class="mini-pill" id="lightStatus">
+                            ● Ativa
+                        </span>
+                    </div>
+
+                    <div class="metric-footnote">
+                        Controle disponível abaixo
+                    </div>
+
+                </article>
+
+            </div>
+
+            <!-- GRÁFICOS E EQUIPAMENTOS -->
+
+            <div class="content-grid">
+
+                <article class="panel chart-panel">
+
+                    <div class="panel-heading">
+
+                        <div>
+                            <h2>Temperatura e umidade</h2>
+                            <p>Variação recente do ambiente</p>
+                        </div>
+
+                        <div class="chart-legend">
+                            <span>
+                                <i class="legend-temp"></i>
+                                Temperatura
+                            </span>
+
+                            <span>
+                                <i class="legend-hum"></i>
+                                Umidade
+                            </span>
+                        </div>
+
+                    </div>
+
+                    <div class="chart-wrap">
+                        <canvas id="environmentChart"></canvas>
+                    </div>
+
+                </article>
+
+                <!-- EQUIPAMENTOS -->
+
+                <article class="panel equipment-panel" id="equipamentos">
+
+                    <div class="panel-heading">
+
+                        <div>
+                            <h2>Equipamentos</h2>
+                            <p>Controles da sala</p>
+                        </div>
+
+                        <span class="device-count">
+                            02 dispositivos
+                        </span>
+
+                    </div>
+
+                    <!-- ILUMINAÇÃO -->
+
+                    <div class="device-row">
+
+                        <div class="device-icon">☼</div>
+
+                        <div class="device-info">
+                            <strong>Iluminação</strong>
+                            <small id="lightDescription">
+                                Luzes da sala
+                            </small>
+                        </div>
+
+                        <label class="switch">
+                            <input type="checkbox" id="lightToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+
+                    </div>
+
+                    <!-- AR CONDICIONADO -->
+
+                    <div class="device-row">
+
+                        <div class="device-icon">❄</div>
+
+                        <div class="device-info">
+                            <strong>Ar-condicionado</strong>
+                            <small id="acDescription">
+                                Temperatura configurada: 22 °C
+                            </small>
+                        </div>
+
+                        <label class="switch">
+                            <input type="checkbox" id="acToggle">
+                            <span class="slider"></span>
+                        </label>
+
+                    </div>
+
+                    <div class="ac-setting">
+
+                        <div>
+                            <span>Temperatura desejada</span>
+
+                            <strong>
+                                <span id="setpointValue">22</span> °C
+                            </strong>
+                        </div>
+
+                        <input
+                            type="range"
+                            id="setpoint"
+                            min="18"
+                            max="28"
+                            value="22"
+                        >
+
+                        <div class="range-labels">
+                            <span>18 °C</span>
+                            <span>28 °C</span>
+                        </div>
+
+                    </div>
+
+                    <p class="demo-note">
+                        <span>i</span>
+                        Os comandos estão em modo de demonstração nesta etapa.
+                    </p>
+
+                </article>
+
+            </div>
+
+            <!-- OCUPAÇÃO E STATUS -->
+
+            <div class="bottom-grid">
+
+                <article class="panel people-panel">
+
+                    <div class="panel-heading">
+
+                        <div>
+                            <h2>Ocupação da sala</h2>
+                            <p>Contagem simulada de pessoas</p>
+                        </div>
+
+                        <span class="occupancy-badge">
+                            40% da capacidade
+                        </span>
+
+                    </div>
+
+                    <div class="occupancy-content">
+
+                        <div class="occupancy-number">
+                            <strong id="occupancyNumber">12</strong>
+                            <span>/ 30 pessoas</span>
+                        </div>
+
+                        <div class="occupancy-track">
+                            <span id="occupancyBar" style="width:40%"></span>
+                        </div>
+
+                        <p>
+                            O sensor de presença será integrado ao Arduino na próxima etapa.
+                        </p>
+
+                    </div>
+
+                </article>
+
+                <article class="panel system-panel">
+
+                    <div class="panel-heading">
+                        <div>
+                            <h2>Status do sistema</h2>
+                            <p>Estado da aplicação</p>
+                        </div>
+                    </div>
+
+                    <div class="system-status-row">
+                        <span class="status-check">✓</span>
+                        <span>Interface do aplicativo</span>
+                        <strong>Ativa</strong>
+                    </div>
+
+                    <div class="system-status-row">
+                        <span class="status-check">✓</span>
+                        <span>Simulação dos sensores</span>
+                        <strong>Ativa</strong>
+                    </div>
+
+                    <div class="system-status-row">
+                        <span class="status-pending">○</span>
+                        <span>API Python</span>
+                        <strong class="pending-text">Pendente</strong>
+                    </div>
+
+                    <div class="system-status-row">
+                        <span class="status-pending">○</span>
+                        <span>Arduino</span>
+                        <strong class="pending-text">Pendente</strong>
+                    </div>
+
+                </article>
+
+            </div>
+
+        </section>
+
+        <!-- SENSORES -->
+
+        <section class="page-section secondary-section" id="sensores">
+
+            <div class="page-intro">
+                <p class="eyebrow">MONITORAMENTO</p>
+                <h1>Sensores</h1>
+                <p class="muted">
+                    Acompanhe as leituras coletadas no ambiente.
+                </p>
+            </div>
+
+            <div class="metrics-grid sensor-metrics">
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span class="metric-icon cyan">♨</span>
+                        <span class="metric-caption">Temperatura</span>
+                    </div>
+
+                    <div class="metric-value" id="sensorTemperature">
+                        22,0<small>°C</small>
+                    </div>
+
+                    <div class="metric-footnote">
+                        Leitura demonstrativa
+                    </div>
+                </article>
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span class="metric-icon violet">◉</span>
+                        <span class="metric-caption">Umidade</span>
+                    </div>
+
+                    <div class="metric-value" id="sensorHumidity">
+                        48<small>%</small>
+                    </div>
+
+                    <div class="metric-footnote">
+                        Leitura demonstrativa
+                    </div>
+                </article>
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span class="metric-icon blue">♙</span>
+                        <span class="metric-caption">Pessoas</span>
+                    </div>
+
+                    <div class="metric-value" id="sensorPeople">
+                        12<small> pessoas</small>
+                    </div>
+
+                    <div class="metric-footnote">
+                        Contagem demonstrativa
+                    </div>
+                </article>
+
+            </div>
+
+            <article class="panel chart-panel standalone-chart">
+
+                <div class="panel-heading">
+                    <div>
+                        <h2>Leituras dos sensores</h2>
+                        <p>Histórico da sessão atual</p>
+                    </div>
+                </div>
+
+                <div class="chart-wrap large-chart">
+                    <canvas id="sensorChart"></canvas>
+                </div>
+
+            </article>
+
+        </section>
+
+        <!-- HISTÓRICO -->
+
+        <section class="page-section secondary-section" id="historico">
+
+            <div class="page-intro">
+                <p class="eyebrow">REGISTROS</p>
+                <h1>Histórico</h1>
+                <p class="muted">
+                    Últimas atualizações registradas nesta demonstração.
+                </p>
+            </div>
+
+            <article class="panel history-panel">
+
+                <div class="panel-heading">
+                    <div>
+                        <h2>Atividade recente</h2>
+                        <p>Eventos desta sessão</p>
+                    </div>
+
+                    <span class="history-count" id="historyCount">
+                        0 registros
+                    </span>
+                </div>
+
+                <div class="history-list" id="historyList">
+                    <div class="empty-state">
+                        Aguardando os primeiros registros...
+                    </div>
+                </div>
+
+            </article>
+
+        </section>
+
+        <footer class="main-footer">
+            <span>SMARTCLASS © 2026</span>
+            <span>Projeto educacional de automação e IoT</span>
+        </footer>
+
+    </main>
+
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
