@@ -2,13 +2,15 @@
 (() => {
     "use strict";
 
-    // ======================================
+    // ==========================================
     // CONFIGURAÇÕES
-    // ======================================
+    // ==========================================
 
     const API_URL = "http://127.0.0.1:5000/api";
+    const INTERVALO_ATUALIZACAO = 2000;
 
     const state = {
+        mode: "demo",
         temperature: 22,
         humidity: 48,
         people: 12,
@@ -18,7 +20,9 @@
         history: [],
         labels: ["08h", "09h", "10h", "11h", "12h", "13h", "14h"],
         temperatures: [21.2, 21.7, 22.1, 22.4, 22, 22.6, 22],
-        humidities: [51, 50, 49, 47, 49, 46, 48]
+        humidities: [51, 50, 49, 47, 49, 46, 48],
+        apiConnected: false,
+        arduinoConnected: false
     };
 
     const $ = id => document.getElementById(id);
@@ -26,13 +30,16 @@
     let environmentChart = null;
     let sensorChart = null;
     let toastTimer = null;
+    let updateTimer = null;
 
-    // ======================================
+    // ==========================================
     // NOTIFICAÇÕES
-    // ======================================
+    // ==========================================
 
     function showToast(message) {
         const toast = $("toast");
+
+        if (!toast) return;
 
         toast.textContent = message;
         toast.classList.add("show");
@@ -44,12 +51,11 @@
         }, 3000);
     }
 
-    // ======================================
+    // ==========================================
     // HISTÓRICO
-    // ======================================
+    // ==========================================
 
     function addHistory(title, detail, symbol = "•") {
-
         state.history.unshift({
             title,
             detail,
@@ -63,36 +69,36 @@
     }
 
     function renderHistory() {
+        const count = $("historyCount");
+        const list = $("historyList");
 
-        $("historyCount").textContent =
-            `${state.history.length} registro(s)`;
+        if (!count || !list) return;
+
+        count.textContent = `${state.history.length} registro(s)`;
 
         if (!state.history.length) {
-            $("historyList").innerHTML =
+            list.innerHTML =
                 '<div class="empty-state">Nenhum registro disponível.</div>';
             return;
         }
 
-        $("historyList").innerHTML = state.history.map(item => `
+        list.innerHTML = state.history.map(item => `
             <div class="history-item">
                 <span class="history-symbol">${item.symbol}</span>
-
                 <div class="history-copy">
                     <strong>${item.title}</strong>
                     <small>${item.detail}</small>
                 </div>
-
                 <span class="history-time">${item.time}</span>
             </div>
         `).join("");
     }
 
-    // ======================================
-    // ATUALIZAR INTERFACE
-    // ======================================
+    // ==========================================
+    // INTERFACE
+    // ==========================================
 
     function renderValues() {
-
         const temp = Number(state.temperature)
             .toFixed(1)
             .replace(".", ",");
@@ -125,8 +131,12 @@
         $("capacityBar").style.width = `${percentage}%`;
         $("occupancyBar").style.width = `${percentage}%`;
 
-        document.querySelector(".occupancy-badge").textContent =
-            `${Math.round(percentage)}% da capacidade`;
+        const occupancyBadge = document.querySelector(".occupancy-badge");
+
+        if (occupancyBadge) {
+            occupancyBadge.textContent =
+                `${Math.round(percentage)}% da capacidade`;
+        }
 
         $("lightValue").textContent =
             state.lightOn ? "Ligada" : "Desligada";
@@ -140,24 +150,142 @@
         $("lightToggle").checked = state.lightOn;
         $("acToggle").checked = state.acOn;
 
-        $("acDescription").textContent =
-            state.acOn
-                ? `Ligado · Ajustado em ${state.setpoint} °C`
-                : "Desligado";
+        $("acDescription").textContent = state.acOn
+            ? `Ligado · Ajustado em ${state.setpoint} °C`
+            : "Desligado";
 
         $("setpointValue").textContent = state.setpoint;
         $("setpoint").value = state.setpoint;
 
         $("lastUpdated").textContent =
             "Atualizado às " + new Date().toLocaleTimeString("pt-BR");
+
+        updateSystemStatus();
     }
 
-    // ======================================
+    function updateSystemStatus() {
+        $("connectionLabel").textContent =
+            state.mode === "demo"
+                ? "Modo demonstração"
+                : state.apiConnected
+                    ? "API conectada"
+                    : "API desconectada";
+
+        $("connectionDetail").textContent =
+            state.mode === "demo"
+                ? "Sensores simulados"
+                : state.arduinoConnected
+                    ? "Arduino conectado"
+                    : state.apiConnected
+                        ? "API ativa · Arduino desconectado"
+                        : "Verifique o servidor Python";
+    }
+
+    // ==========================================
+    // SELETOR DE MODO
+    // ==========================================
+
+    function createModeSelector() {
+        const actions = document.querySelector(".topbar-actions");
+
+        if (!actions || $("modeSelector")) return;
+
+        const wrapper = document.createElement("div");
+
+        wrapper.style.display = "flex";
+        wrapper.style.alignItems = "center";
+        wrapper.style.gap = "8px";
+
+        const selector = document.createElement("select");
+
+        selector.id = "modeSelector";
+        selector.setAttribute("aria-label", "Modo de funcionamento");
+
+        selector.innerHTML = `
+            <option value="demo">Demonstração</option>
+            <option value="connected">Conectado</option>
+        `;
+
+        selector.style.background = "#10243a";
+        selector.style.color = "#ffffff";
+        selector.style.border = "1px solid #29415b";
+        selector.style.borderRadius = "8px";
+        selector.style.padding = "9px";
+        selector.style.fontSize = "12px";
+        selector.style.cursor = "pointer";
+
+        selector.value = state.mode;
+
+        selector.addEventListener("change", async () => {
+            await changeMode(selector.value);
+        });
+
+        wrapper.appendChild(selector);
+
+        actions.insertBefore(wrapper, actions.firstChild);
+    }
+
+    async function changeMode(mode) {
+        if (mode !== "demo" && mode !== "connected") return;
+
+        state.mode = mode;
+
+        clearInterval(updateTimer);
+
+        if (mode === "demo") {
+            state.apiConnected = false;
+            state.arduinoConnected = false;
+
+            $("demoNote").textContent =
+                "Os comandos estão funcionando em modo de demonstração.";
+
+            addHistory(
+                "Modo demonstração ativado",
+                "Dados e controles simulados.",
+                "✓"
+            );
+
+            renderValues();
+            showToast("Modo demonstração ativado.");
+
+            simulateEnvironment();
+
+            updateTimer = setInterval(
+                simulateEnvironment,
+                INTERVALO_ATUALIZACAO
+            );
+        } else {
+            $("demoNote").textContent =
+                "Os comandos serão enviados para a API Python.";
+
+            addHistory(
+                "Modo conectado selecionado",
+                "Tentando conectar à API Python.",
+                "•"
+            );
+
+            const connected = await loadFromAPI();
+
+            if (connected) {
+                showToast("Conexão com a API estabelecida.");
+            } else {
+                showToast("API indisponível. Verifique o servidor Python.");
+            }
+
+            updateTimer = setInterval(
+                loadFromAPI,
+                INTERVALO_ATUALIZACAO
+            );
+        }
+
+        $("modeSelector").value = mode;
+    }
+
+    // ==========================================
     // GRÁFICOS
-    // ======================================
+    // ==========================================
 
     function chartOptions(legend = false) {
-
         return {
             responsive: true,
             maintainAspectRatio: false,
@@ -192,7 +320,6 @@
     }
 
     function createCharts() {
-
         if (typeof Chart === "undefined") {
             console.error("Chart.js não foi carregado.");
             return;
@@ -202,10 +329,8 @@
             $("environmentChart"),
             {
                 type: "line",
-
                 data: {
                     labels: state.labels,
-
                     datasets: [
                         {
                             label: "Temperatura (°C)",
@@ -225,18 +350,14 @@
                         }
                     ]
                 },
-
                 options: {
                     ...chartOptions(),
-
                     scales: {
                         x: chartOptions().scales.x,
-
                         y: {
                             position: "left",
                             grid: { color: "#1a3048" }
                         },
-
                         y1: {
                             position: "right",
                             min: 0,
@@ -252,10 +373,8 @@
             $("sensorChart"),
             {
                 type: "line",
-
                 data: {
                     labels: state.labels,
-
                     datasets: [
                         {
                             label: "Temperatura (°C)",
@@ -271,29 +390,24 @@
                         }
                     ]
                 },
-
                 options: chartOptions(true)
             }
         );
     }
 
     function updateCharts() {
-
         [environmentChart, sensorChart].forEach(chart => {
-
             if (!chart) return;
 
-            chart.data.labels = state.labels;
-
-            chart.data.datasets[0].data = state.temperatures;
-            chart.data.datasets[1].data = state.humidities;
+            chart.data.labels = [...state.labels];
+            chart.data.datasets[0].data = [...state.temperatures];
+            chart.data.datasets[1].data = [...state.humidities];
 
             chart.update();
         });
     }
 
     function updateGraphValues() {
-
         state.labels.push(
             new Date().toLocaleTimeString("pt-BR", {
                 hour: "2-digit",
@@ -313,15 +427,82 @@
         updateCharts();
     }
 
-    // ======================================
-    // CONEXÃO COM A API PYTHON
-    // ======================================
+    // ==========================================
+    // MODO DEMONSTRAÇÃO
+    // ==========================================
+
+    function simulateEnvironment() {
+        if (state.mode !== "demo") return;
+
+        state.temperature += (Math.random() - 0.5) * 0.5;
+        state.temperature = Math.max(
+            19,
+            Math.min(28, state.temperature)
+        );
+
+        state.humidity += Math.round((Math.random() - 0.5) * 3);
+        state.humidity = Math.max(
+            35,
+            Math.min(65, state.humidity)
+        );
+
+        state.people += Math.round((Math.random() - 0.5) * 2);
+        state.people = Math.max(
+            0,
+            Math.min(30, state.people)
+        );
+
+        if (state.acOn) {
+            state.temperature +=
+                (state.setpoint - state.temperature) * 0.08;
+        }
+
+        renderValues();
+        updateGraphValues();
+    }
+
+    function simulateControl(dispositivo, dados) {
+        if (dispositivo === "iluminacao") {
+            state.lightOn = dados.ligado;
+
+            addHistory(
+                "Iluminação alterada",
+                state.lightOn ? "Luzes ligadas." : "Luzes desligadas.",
+                "✓"
+            );
+        }
+
+        if (dispositivo === "ar_condicionado") {
+            state.acOn = dados.ligado;
+
+            addHistory(
+                "Ar-condicionado alterado",
+                state.acOn ? "Equipamento ligado." : "Equipamento desligado.",
+                "✓"
+            );
+        }
+
+        if (dispositivo === "temperatura") {
+            state.setpoint = dados.valor;
+
+            addHistory(
+                "Temperatura ajustada",
+                `Nova temperatura desejada: ${state.setpoint} °C.`,
+                "✓"
+            );
+        }
+
+        renderValues();
+        showToast("Comando simulado com sucesso.");
+    }
+
+    // ==========================================
+    // API PYTHON
+    // ==========================================
 
     async function apiRequest(endpoint, options = {}) {
-
         const response = await fetch(`${API_URL}${endpoint}`, {
             ...options,
-
             headers: {
                 "Content-Type": "application/json",
                 ...options.headers
@@ -331,56 +512,41 @@
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.mensagem || result.erro || "Erro na API.");
+            throw new Error(
+                result.mensagem || result.erro || "Erro na API."
+            );
         }
 
         return result;
     }
 
     async function loadFromAPI() {
+        if (state.mode !== "connected") return false;
 
         try {
-
             const data = await apiRequest("/status");
 
             state.temperature = Number(data.temperatura);
             state.humidity = Number(data.umidade);
             state.people = Number(data.pessoas);
 
-            state.lightOn = data.iluminacao;
-            state.acOn = data.ar_condicionado;
+            state.lightOn = Boolean(data.iluminacao);
+            state.acOn = Boolean(data.ar_condicionado);
 
             state.setpoint = Number(data.temperatura_desejada);
+
+            state.apiConnected = true;
+            state.arduinoConnected = Boolean(data.arduino_conectado);
 
             renderValues();
             updateGraphValues();
 
-            if (data.arduino_conectado) {
-
-                $("connectionLabel").textContent =
-                    "Arduino conectado";
-
-                $("connectionDetail").textContent =
-                    "Comunicação serial ativa";
-
-            } else {
-
-                $("connectionLabel").textContent =
-                    "Arduino desconectado";
-
-                $("connectionDetail").textContent =
-                    "Verifique a conexão USB";
-            }
-
             return true;
-
         } catch (error) {
+            state.apiConnected = false;
+            state.arduinoConnected = false;
 
-            $("connectionLabel").textContent =
-                "API desconectada";
-
-            $("connectionDetail").textContent =
-                "Verifique o servidor Python";
+            updateSystemStatus();
 
             console.error("Erro na API:", error);
 
@@ -388,17 +554,15 @@
         }
     }
 
-    // ======================================
-    // ENVIAR COMANDOS PARA A API
-    // ======================================
-
     async function sendControl(dispositivo, dados) {
+        if (state.mode === "demo") {
+            simulateControl(dispositivo, dados);
+            return true;
+        }
 
         try {
-
             const result = await apiRequest("/controle", {
                 method: "POST",
-
                 body: JSON.stringify({
                     dispositivo,
                     ...dados
@@ -407,103 +571,90 @@
 
             addHistory(
                 "Comando enviado",
-                result.mensagem,
+                result.mensagem || "Comando enviado à API.",
                 "✓"
             );
 
             await loadFromAPI();
 
-            showToast(result.mensagem);
+            showToast(result.mensagem || "Comando enviado.");
 
             return true;
-
         } catch (error) {
-
             showToast(error.message);
-
             await loadFromAPI();
-
             return false;
         }
     }
 
-    // ======================================
-    // CONTROLES DE ILUMINAÇÃO
-    // ======================================
+    // ==========================================
+    // CONTROLES
+    // ==========================================
 
-    $("lightToggle").addEventListener("change", async event => {
+    function setupControls() {
+        $("lightToggle").addEventListener("change", async event => {
+            const toggle = event.target;
+            const ligado = toggle.checked;
 
-        const ligado = event.target.checked;
+            if (state.mode === "connected") {
+                toggle.disabled = true;
+            }
 
-        event.target.disabled = true;
+            const success = await sendControl(
+                "iluminacao",
+                { ligado }
+            );
 
-        const sucesso = await sendControl(
-            "iluminacao",
-            { ligado }
-        );
+            toggle.disabled = false;
 
-        event.target.disabled = false;
+            if (!success) {
+                toggle.checked = state.lightOn;
+            }
+        });
 
-        if (!sucesso) {
-            event.target.checked = state.lightOn;
-        }
-    });
+        $("acToggle").addEventListener("change", async event => {
+            const toggle = event.target;
+            const ligado = toggle.checked;
 
-    // ======================================
-    // CONTROLES DO AR-CONDICIONADO
-    // ======================================
+            if (state.mode === "connected") {
+                toggle.disabled = true;
+            }
 
-    $("acToggle").addEventListener("change", async event => {
+            const success = await sendControl(
+                "ar_condicionado",
+                { ligado }
+            );
 
-        const ligado = event.target.checked;
+            toggle.disabled = false;
 
-        event.target.disabled = true;
+            if (!success) {
+                toggle.checked = state.acOn;
+            }
+        });
 
-        const sucesso = await sendControl(
-            "ar_condicionado",
-            { ligado }
-        );
+        $("setpoint").addEventListener("input", event => {
+            $("setpointValue").textContent = event.target.value;
+        });
 
-        event.target.disabled = false;
+        $("setpoint").addEventListener("change", async event => {
+            const valor = Number(event.target.value);
 
-        if (!sucesso) {
-            event.target.checked = state.acOn;
-        }
-    });
+            await sendControl(
+                "temperatura",
+                { valor }
+            );
+        });
+    }
 
-    // ======================================
-    // AJUSTE DE TEMPERATURA
-    // ======================================
-
-    $("setpoint").addEventListener("input", event => {
-
-        $("setpointValue").textContent =
-            event.target.value;
-
-    });
-
-    $("setpoint").addEventListener("change", async event => {
-
-        const valor = Number(event.target.value);
-
-        await sendControl(
-            "temperatura",
-            { valor }
-        );
-    });
-
-    // ======================================
+    // ==========================================
     // NAVEGAÇÃO
-    // ======================================
+    // ==========================================
 
     function setupNavigation() {
-
         const links = document.querySelectorAll(".nav-link");
 
         links.forEach(link => {
-
             link.addEventListener("click", event => {
-
                 event.preventDefault();
 
                 const page = link.dataset.page;
@@ -527,16 +678,13 @@
                 }
 
                 if (page === "equipamentos") {
-
                     setTimeout(() => {
                         $("equipamentos").scrollIntoView({
                             behavior: "smooth",
                             block: "center"
                         });
                     }, 50);
-
                 } else {
-
                     window.scrollTo({
                         top: 0,
                         behavior: "smooth"
@@ -544,10 +692,7 @@
                 }
 
                 links.forEach(item => {
-                    item.classList.toggle(
-                        "active",
-                        item === link
-                    );
+                    item.classList.toggle("active", item === link);
                 });
 
                 $("pageTitle").textContent = {
@@ -562,49 +707,50 @@
         });
     }
 
-    // ======================================
+    // ==========================================
     // INICIALIZAÇÃO
-    // ======================================
+    // ==========================================
 
     async function initialize() {
-
         createCharts();
-
+        createModeSelector();
         setupNavigation();
+        setupControls();
 
         $("menuButton").addEventListener("click", () => {
             $("sidebar").classList.toggle("open");
         });
 
         $("refreshButton").addEventListener("click", async () => {
+            if (state.mode === "demo") {
+                simulateEnvironment();
+                showToast("Dados demonstrativos atualizados.");
+                return;
+            }
 
-            const sucesso = await loadFromAPI();
+            const success = await loadFromAPI();
 
             showToast(
-                sucesso
+                success
                     ? "Dados atualizados."
-                    : "Não foi possível atualizar os dados."
+                    : "Não foi possível conectar à API."
             );
         });
 
         addHistory(
             "Sistema iniciado",
-            "SMARTCLASS conectado ao frontend.",
+            "SMARTCLASS iniciado em modo demonstração.",
             "✓"
         );
 
         renderValues();
 
-        // Primeira consulta.
-        await loadFromAPI();
-
-        // Atualizar dados a cada 2 segundos.
-        setInterval(loadFromAPI, 2000);
+        updateTimer = setInterval(
+            simulateEnvironment,
+            INTERVALO_ATUALIZACAO
+        );
     }
 
-    document.addEventListener(
-        "DOMContentLoaded",
-        initialize
-    );
+    document.addEventListener("DOMContentLoaded", initialize);
 
 })();
