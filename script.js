@@ -257,104 +257,153 @@
     }
 
     // ==========================================
-    // GRÁFICOS
-    // ==========================================
+// GRÁFICOS
+// ==========================================
 
-    function chartOptions(legend = false) {
-        return {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: "index", intersect: false },
-            plugins: {
-                legend: {
-                    display: legend,
-                    labels: { color: "#91a8c1", usePointStyle: true }
+function chartOptions(legend = false) {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+            duration: 800, // Duração da animação inicial
+            easing: 'easeInOutCubic'
+        },
+        interaction: {
+            mode: "index",
+            intersect: false
+        },
+        plugins: {
+            legend: {
+                display: legend,
+                labels: {
+                    color: "#91a8c1",
+                    usePointStyle: true,
+                    font: { size: 10 }
                 }
             },
-            scales: {
-                x: {
-                    grid: { color: "#1a3048" },
-                    ticks: { color: "#7089a4" }
-                },
-                y: {
-                    grid: { color: "#1a3048" },
-                    ticks: { color: "#7089a4" }
+            tooltip: {
+                backgroundColor: '#08172b', // Fundo do tooltip profissional
+                titleColor: '#fff',
+                bodyColor: '#fff',
+                borderColor: '#19314b',
+                borderWidth: 1,
+                padding: 10,
+                displayColors: true,
+                usePointStyle: true,
+                callbacks: {
+                    // Formata o tooltip idêntico ao print
+                    label: function(context) {
+                        let label = context.dataset.label || '';
+                        if (label) {
+                            label += ': ';
+                        }
+                        if (context.parsed.y !== null) {
+                            label += context.parsed.y.toFixed(context.dataset.yAxisID === 'y' ? 1 : 0);
+                            label += context.dataset.yAxisID === 'y' ? ' °C' : '%';
+                        }
+                        return label;
+                    }
                 }
             }
-        };
-    }
-
-    function createCharts() {
-        if (typeof Chart === "undefined") {
-            console.error("Chart.js não foi carregado.");
-            return;
+        },
+        scales: {
+            x: {
+                grid: { color: "#1a3048", display: false }, // Remove grid X p/ clean
+                ticks: { color: "#7089a4", font: { size: 10 } }
+            },
+            y: {
+                grid: { color: "#1a3048", display: false }, // Remove grid Y p/ clean
+                ticks: { color: "#7089a4", font: { size: 10 } }
+            }
         }
+    };
+}
 
-        environmentChart = new Chart($("environmentChart"), {
-            type: "line",
-            data: {
-                labels: state.labels,
-                datasets: [
-                    {
-                        label: "Temperatura (°C)",
-                        data: state.temperatures,
-                        borderColor: "#28b5ff",
-                        backgroundColor: "#28b5ff18",
-                        tension: 0.4,
-                        fill: true,
-                        yAxisID: "y"
-                    },
-                    {
-                        label: "Umidade (%)",
-                        data: state.humidities,
-                        borderColor: "#a78bfa",
-                        tension: 0.4,
-                        yAxisID: "y1"
-                    }
-                ]
-            },
-            options: {
-                ...chartOptions(),
-                scales: {
-                    x: chartOptions().scales.x,
-                    y: {
-                        position: "left",
-                        grid: { color: "#1a3048" },
-                        ticks: { color: "#7089a4" }
-                    },
-                    y1: {
-                        position: "right",
-                        min: 0,
-                        max: 100,
-                        grid: { drawOnChartArea: false },
-                        ticks: { color: "#7089a4" }
+function createCharts() {
+    if (typeof Chart === "undefined") {
+        console.error("Chart.js não foi carregado.");
+        return;
+    }
+
+    // Gráfico Visão Geral (Cores Exatas do Print)
+    environmentChart = new Chart($("environmentChart"), {
+        type: "line",
+        data: {
+            labels: state.labels,
+            datasets: [
+                {
+                    label: "Temperatura (°C)",
+                    data: state.temperatures,
+                    borderColor: "#22d3ee", // Ciano exato do print
+                    backgroundColor: "rgba(34, 211, 238, 0.1)",
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#fff',
+                    fill: true,
+                    yAxisID: "y",
+                    cubicInterpolationMode: 'monotone' // <-- LINHA ARREDONDADA IGUAL PRINT
+                },
+                {
+                    label: "Umidade (%)",
+                    data: state.humidities,
+                    borderColor: "#a78bfa", // Violeta exato do print
+                    tension: 0.4,
+                    pointRadius: 0, // Pontos de umidade menores ou zero no print
+                    fill: false,
+                    yAxisID: "y1",
+                    cubicInterpolationMode: 'monotone' // <-- LINHA ARREDONDADA IGUAL PRINT
+                }
+            ]
+        },
+        options: {
+            ...chartOptions(),
+            scales: {
+                x: chartOptions().scales.x,
+                y: {
+                    ...chartOptions().scales.y,
+                    position: "left",
+                    // Escala automática para temperatura (ex: 19 a 26)
+                },
+                y1: {
+                    ...chartOptions().scales.y,
+                    position: "right",
+                    min: 0, // <-- EIXO Y UMIDADE FIXO 0 A 100
+                    max: 100, 
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        callback: function(value) { return value + '%'; }
                     }
                 }
             }
-        });
+        }
+    });
 
-        sensorChart = new Chart($("sensorChart"), {
-            type: "line",
-            data: {
-                labels: state.labels,
-                datasets: [
-                    {
-                        label: "Temperatura (°C)",
-                        data: state.temperatures,
-                        borderColor: "#28b5ff",
-                        tension: 0.4
-                    },
-                    {
-                        label: "Umidade (%)",
-                        data: state.humidities,
-                        borderColor: "#a78bfa",
-                        tension: 0.4
-                    }
-                ]
-            },
-            options: chartOptions(true)
-        });
-    }
+    // Gráfico Aba Sensores (Mantive o seu, apenas adicionei a linha suave)
+    sensorChart = new Chart($("sensorChart"), {
+        type: "line",
+        data: {
+            labels: state.labels,
+            datasets: [
+                {
+                    label: "Temperatura (°C)",
+                    data: state.temperatures,
+                    borderColor: "#22d3ee",
+                    tension: 0.4,
+                    cubicInterpolationMode: 'monotone'
+                },
+                {
+                    label: "Umidade (%)",
+                    data: state.humidities,
+                    borderColor: "#a78bfa",
+                    tension: 0.4,
+                    cubicInterpolationMode: 'monotone'
+                }
+            ]
+        },
+        options: chartOptions(true)
+    });
+}
+// ... resto do seu script.js (renderValues, updateGraphValues, etc.)
 
     function updateCharts() {
         [environmentChart, sensorChart].forEach(chart => {
